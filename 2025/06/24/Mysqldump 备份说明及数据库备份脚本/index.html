@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 7.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Mysqldump 备份说明及数据库备份脚本MySQLdump是MySQL自带的导出数据工具，即mysql数据库中备份工具，用于将MySQL服务器中的数据库以标准的sql语言的方式导出，并保存到文件中。Mysqldump是一个客户端逻辑备份的工作，备份的SQL文件可以在其他MySQL服务器上进行还原。 如需备份，则至少需要对该表的select权限，需要备份视图则需要改账户具有SHOW VIEW权限">
+<meta property="og:type" content="article">
+<meta property="og:title" content="mysqldump备份说明及数据库备份脚本">
+<meta property="og:url" content="http://example.com/2025/06/24/Mysqldump%20%E5%A4%87%E4%BB%BD%E8%AF%B4%E6%98%8E%E5%8F%8A%E6%95%B0%E6%8D%AE%E5%BA%93%E5%A4%87%E4%BB%BD%E8%84%9A%E6%9C%AC/index.html">
+<meta property="og:site_name" content="写点什么.">
+<meta property="og:description" content="Mysqldump 备份说明及数据库备份脚本MySQLdump是MySQL自带的导出数据工具，即mysql数据库中备份工具，用于将MySQL服务器中的数据库以标准的sql语言的方式导出，并保存到文件中。Mysqldump是一个客户端逻辑备份的工作，备份的SQL文件可以在其他MySQL服务器上进行还原。 如需备份，则至少需要对该表的select权限，需要备份视图则需要改账户具有SHOW VIEW权限">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-06-24T06:14:47.000Z">
+<meta property="article:modified_time" content="2025-06-24T06:16:19.067Z">
+<meta property="article:author" content="YinXukai">
+<meta property="article:tag" content="mysql">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2025/06/24/Mysqldump%20%E5%A4%87%E4%BB%BD%E8%AF%B4%E6%98%8E%E5%8F%8A%E6%95%B0%E6%8D%AE%E5%BA%93%E5%A4%87%E4%BB%BD%E8%84%9A%E6%9C%AC/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>mysqldump备份说明及数据库备份脚本 | 写点什么.</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">写点什么.</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-commonweal">
+
+    <a href="/404/" rel="section"><i class="fa fa-fw fa-heartbeat"></i>公益 404</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2025/06/24/Mysqldump%20%E5%A4%87%E4%BB%BD%E8%AF%B4%E6%98%8E%E5%8F%8A%E6%95%B0%E6%8D%AE%E5%BA%93%E5%A4%87%E4%BB%BD%E8%84%9A%E6%9C%AC/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="YinXukai">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="写点什么.">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          mysqldump备份说明及数据库备份脚本
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2025-06-24 14:14:47 / 修改时间：14:16:19" itemprop="dateCreated datePublished" datetime="2025-06-24T14:14:47+08:00">2025-06-24</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="Mysqldump-备份说明及数据库备份脚本"><a href="#Mysqldump-备份说明及数据库备份脚本" class="headerlink" title="Mysqldump 备份说明及数据库备份脚本"></a>Mysqldump 备份说明及数据库备份脚本</h1><p>MySQLdump是MySQL自带的导出数据工具，即mysql数据库中备份工具，用于将MySQL服务器中的数据库以标准的sql语言的方式导出，并保存到文件中。Mysqldump是一个客户端逻辑备份的工作，备份的SQL文件可以在其他MySQL服务器上进行还原。</p>
+<p>如需备份，则至少需要对该表的select权限，需要备份视图则需要改账户具有SHOW VIEW权限，触发器需要TRIGGER。如需锁表，则不可使用–single-transaction选项。其他权限暂未列出。<br>如需还原，则需要对应的执行权限，如create表，则需要对该库的create权限。</p>
+<p>Mysqldump导出可以包括ALTER DATABASE与相关更改，其中包括导出元数据、更改字符编码，在导入对应文件时，相应的权限更改也会发生影响。如果在服务器上备份的表均为MyISAM，也可以使用mysqlhotcopy来完成任务。</p>
+<p>从性能和伸缩性考虑，mysqldump的优势包括：在输出之前可以很方便的查看或编辑文件，你还可以克隆数据库与DBA的工作，或者将生产环境下的数据进行微小测试。这不是作为快速备份或可伸缩性很强的方案。即针对不同大小的数据需要安排合理时间，在需要还原时速度并不快，因为需要重新进行I&#x2F;O、创建索引等。</p>
+<p>对于大量数据来说，物理备份可能更为合适，因为它可以快速还原。</p>
+<p>- 如果你的表以Innodb引擎为主，可以考虑使用MySQL的mysqlbackup命令。因为他提供了最好的Innodb备份：它也可以备份其他如MyIsAM与其他存储引擎；提供了更多的备份参数进行选择。详情见手册 25.2 “MySQL Enterprise Backup Overview”</p>
+<p>- 如果你的表以MyISAM引擎为主，可以考虑使用mysqlhotcopy来替代，它可能比mysqldump表现更为好，详情见mysqlhotcopy手册。</p>
+<p>Mysqldump可以行级导出数据，或者也可以将整个表载入内存一次性导出，如果将所有数据导入内存可能会面临内存缓冲区不够的问题。如果要行级导出数据，使用–quick选项（或者–opt，它支持–quick）。–opt选项是默认选项，所以为了保证内存缓冲区，使用–skip-quick。</p>
+<p>如果使用高版本的mysqldump来备份一个低版本的MySQL服务器中的数据，使用–skip-opt代替–opt或者– extended-insert选项。</p>
+<p><strong>下面对它的使用进行总结性梳理：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">查询该命令的帮助信息（有很多参数，具体也可以man一下）</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump --<span class="built_in">help</span></span><br><span class="line"> </span><br><span class="line">常用的几个选项</span><br><span class="line">--add-drop-table：在每个创建数据库表语句前添加删除数据库表的语句；</span><br><span class="line">--add-locks：备份数据库表时锁定数据库表；</span><br><span class="line">--all-databases（即-A）：备份MySQL服务器上的所有数据库；</span><br><span class="line">--comments：添加注释信息；</span><br><span class="line">--compact：压缩模式，产生更少的输出；</span><br><span class="line">--complete-insert：输出完成的插入语句；</span><br><span class="line">--databases（即-B）：指定要备份的数据库；</span><br><span class="line">--default-character-set：指定默认字符集；</span><br><span class="line">--force（即-f）：当出现错误时仍然继续备份操作；</span><br><span class="line">--host：指定要备份数据库的服务器；</span><br><span class="line">--lock-tables：备份前，锁定所有数据库表；</span><br><span class="line">--no-create-db：禁止生成创建数据库语句；</span><br><span class="line">--no-create-info：禁止生成创建数据库库表语句；</span><br><span class="line">--password：连接MySQL服务器的密码；</span><br><span class="line">--port：MySQL服务器的端口号；</span><br><span class="line">--user：连接MySQL服务器的用户名。</span><br><span class="line">--no-data（即-d）：只导出表结构。</span><br><span class="line">--quick,（即-q）：快速导出。</span><br><span class="line">--xml,（即-X）：导出为xml文件。</span><br><span class="line">--tables：覆盖 --databases or -B选项，后面所跟参数被视作表名。</span><br><span class="line">--default-character-set，字符集设置。比如--default-character-set=gb2312、--default-character-set=utf8</span><br></pre></td></tr></table></figure>
+
+<p>参数**–lock-tables** 表示的是<strong>一次性锁定当前库的所有表</strong>, 而不是锁定当前导出表! 例如:<br># mysqldump -u root -p –default-character-set&#x3D;utf8 –opt –extended-insert&#x3D;false –lock-tables MyDB &gt; db_backup_MyDB.sql </p>
+<p><strong>实例说明：</strong></p>
+<p><strong>1）导出、导入所有的库（–all-databases, -A  导出全部数据库）</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">导出所有的库</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -hlocalhost -p123456 --all-databases &gt;/opt/all.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">导入所有的库</span><br><span class="line">[root@Mysql-node1 ~]# mysql -uroot -hlocalhost -p123456 &lt; /opt/all.sql               </span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">或者</span><br><span class="line">mysql&gt; <span class="built_in">source</span> /opt/all.sql;</span><br></pre></td></tr></table></figure>
+
+<p><strong>2）导出、导入某个库（比如kevin库</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">导出kevin库</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -hlocalhost -p123456 kevin &gt; /opt/kevin.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">导入kevin库（前提是kevin库要存在，如果没有，在导入前先创建kevin空库）</span><br><span class="line">[root@Mysql-node1 ~]# mysql -uroot -hlocalhost -p123456 kevin &lt; /opt/kevin.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">或者</span><br><span class="line">mysql&gt; use kevin；</span><br><span class="line">mysql&gt; <span class="built_in">source</span> /opt/all.sql;</span><br></pre></td></tr></table></figure>
+
+<p><strong>3）导出、导入某几个库（比如kevin、grace库）（–databases， -B 导出部分数据库）</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">导出kevin、grace库</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -hlocalhost -p123456 -B kevin grace &gt; /opt/kevin_grace.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">导入kevin、grace库（多个库的导入、恢复数据操作，不需要要求这些库必须存在，如没有存在，不需要提前创建这些空库）</span><br><span class="line">[root@Mysql-node1 ~]# mysql -uroot -hlocalhost -p123456 &lt; /opt/kevin_grace.sql                  </span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">或者</span><br><span class="line">mysql&gt; <span class="built_in">source</span> /opt/kevin_grace.sql;</span><br></pre></td></tr></table></figure>
+
+<p><strong>4）导出、导入某个库的某些表数据</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">导出kevin库的haha、heihei表数据（可以在导出时加--add-locks参数，表示导出时锁定数据库表；这里没有添加）</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -hlocalhost -p123456 kevin haha heihei &gt; /opt/kevin_hahei.sql        </span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">导入kevin库的haha、heihei表数据（要保证kevin库真实存在，如果没有，需要提前创建）</span><br><span class="line">[root@Mysql-node1 ~]# mysql -uroot -hlocalhost -p123456 kevin &lt; /opt/kevin_hahei.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">或者</span><br><span class="line">mysql&gt; use kevin;</span><br><span class="line">Database changed</span><br><span class="line">mysql&gt; <span class="built_in">source</span> /opt/kevin_hahei.sql;</span><br></pre></td></tr></table></figure>
+
+<p><strong>5）只导出数据库结构，不导出数据*<em>（–no-data, -d 只导出表结构，不导出表数据）*</em></strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">导出kevin库下所有的表结构（不导出表数据）（去掉下面的--add-drop-table参数也可以）</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -hlocalhost -p123456 -d --add-drop-table kevin &gt; /opt/kevin_table.sql           </span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line">  </span><br><span class="line">导入kevin库的表结构（前提要保证kevin库真实存在）</span><br><span class="line">[root@Mysql-node1 ~]# mysql -uroot -hlocalhost -p123456 kevin &lt; /opt/kevin_table.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line">  </span><br><span class="line">或者</span><br><span class="line">mysql&gt; use kevin;</span><br><span class="line">Database changed</span><br><span class="line">mysql&gt; <span class="built_in">source</span> /opt/kevin_table.sql;</span><br><span class="line">  </span><br><span class="line">----------------------------------------------------------------------------------------------------</span><br><span class="line">如果是导出某个库下的一个或几个表结构（不包括表数据），命令如下（加不加--add-drop-table参数都可以）：</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -hlocalhost -p123456 -d kevin haha heihei &gt; /opt/kevin_table_2.sql             </span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">导入上面备份的数据时，要保证kevin提前真实存在。</span><br><span class="line">[root@Mysql-node1 ~]# mysql -uroot -hlocalhost -p123456 kevin &lt; /opt/kevin_table_2.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br></pre></td></tr></table></figure>
+
+<p><strong>6）完整导出时过滤掉某些库（使用–databases，而不是–all-databases）</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">如下在导出整个数据库时，过滤掉information_schema、mysql、<span class="built_in">test</span>、performance_schema这几个库</span><br><span class="line">[root@Mysql-node1 ~]# mysql -p123456 -e <span class="string">&quot;show databases&quot;</span>|grep -Ev <span class="string">&quot;Database&quot;</span>                                     </span><br><span class="line">information_schema</span><br><span class="line">grace</span><br><span class="line">kevin</span><br><span class="line">mysql</span><br><span class="line">performance_schema</span><br><span class="line"><span class="built_in">test</span></span><br><span class="line"> </span><br><span class="line">[root@Mysql-node1 ~]# mysql -p123456 -e <span class="string">&quot;show databases&quot;</span>|grep -Ev <span class="string">&quot;Database|information_schema|mysql|test|performance_schema&quot;</span></span><br><span class="line">grace</span><br><span class="line">kevin</span><br><span class="line"> </span><br><span class="line">[root@Mysql-node1 ~]# mysql -p123456 -e <span class="string">&quot;show databases&quot;</span>|grep -Ev <span class="string">&quot;Database|information_schema|mysql|test|performance_schema&quot;</span>|xargs mysqldump -uroot -p123456 --databases &gt; /opt/mysql_dump.sql</span><br><span class="line"> </span><br><span class="line">导入上面备份的库（这些库不需要真实存在，恢复时如果库不存在，会自动创建）</span><br><span class="line">[root@Mysql-node1 ~]# mysql -uroot -hlocalhost -p123456 &lt; /opt/mysql_dump.sql</span><br><span class="line">Warning: Using a password on the <span class="built_in">command</span> line interface can be insecure.</span><br><span class="line"> </span><br><span class="line">或者：</span><br><span class="line">mysql&gt; <span class="built_in">source</span> /opt/kevin_grace.sql;</span><br></pre></td></tr></table></figure>
+
+<pre><code>                                **Mysqldump日常操作语句集锦**                                   
+</code></pre>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br></pre></td><td class="code"><pre><span class="line">mysqldump的几种常用方法：</span><br><span class="line">1）导出整个数据库(包括数据库中的数据）</span><br><span class="line">mysqldump -u username -p dbname &gt; dbname.sql  </span><br><span class="line">   </span><br><span class="line">2）导出数据库结构（不含数据）</span><br><span class="line">mysqldump -u username -p -d dbname &gt; dbname.sql  </span><br><span class="line">   </span><br><span class="line">3）导出数据库中的某张数据表（包含数据）</span><br><span class="line">mysqldump -u username -p dbname tablename &gt; tablename.sql  </span><br><span class="line">   </span><br><span class="line">4）导出数据库中的某张数据表的表结构（不含数据）</span><br><span class="line">mysqldump -u username -p -d dbname tablename &gt; tablename.sql </span><br><span class="line">   </span><br><span class="line">=============================================================================</span><br><span class="line">mysqldump常用参数说明（适用于mysql 5.6版本， mysql 5.7版本有的就不太适用了）</span><br><span class="line"> </span><br><span class="line">--all-databases , -A 导出全部数据库</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases &gt; /root/db.sql</span><br><span class="line">  </span><br><span class="line">--all-tablespaces , -Y导出全部表空间。(-y不导出任何表空间信息)</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --all-tablespaces --no-tablespaces &gt; /root/db.sql</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --no-tablespaces &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--add-drop-database每个数据库创建之前添加drop数据库语句。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --add-drop-database &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--add-drop-table每个数据表创建之前添加drop数据表语句。(默认为打开状态，使用--skip-add-drop-table取消选项)</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases   &gt; /root/db.sql          <span class="comment">#默认添加drop语句</span></span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --skip-add-drop-table &gt; /root/db.sql      <span class="comment">#取消drop语句</span></span><br><span class="line">   </span><br><span class="line">--add-locks在每个表导出之前增加LOCK TABLES并且之后UNLOCK TABLE。(默认为打开状态，使用--skip-add-locks取消选项)</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases &gt; /root/db.sql       <span class="comment">#默认添加LOCK语句</span></span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --skip-add-locks   &gt; /root/db.sql       <span class="comment">#取消LOCK语句</span></span><br><span class="line">   </span><br><span class="line">--comments附加注释信息。默认为打开，可以用--skip-comments取消</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases  &gt; /root/db.sql         <span class="comment">#默认记录注释</span></span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --skip-comments  &gt; /root/db.sql     <span class="comment">#取消注释</span></span><br><span class="line">   </span><br><span class="line">--compact导出更少的输出信息(用于调试)。去掉注释和头尾等结构。</span><br><span class="line">可以使用选项：--skip-add-drop-table 、--skip-add-locks、--skip-comments、--skip-disable-keys</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --compact &gt; /root/db.sql</span><br><span class="line">  </span><br><span class="line">--complete-insert, -c使用完整的insert语句(包含列名称)。这么做能提高插入效率，但是可能会受到max_allowed_packet参数的影响而导致插入失败。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --complete-insert &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--compress, -C在客户端和服务器之间启用压缩传递所有信息</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --compress &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--databases, -B导出几个数据库。参数后面所有名字参量都被看作数据库名。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --databases <span class="built_in">test</span> mysql &gt; /root/db.sql</span><br><span class="line"> </span><br><span class="line">--debug-info输出调试信息并退出</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --debug-info &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--default-character-set设置默认字符集，默认值为utf8</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --default-character-set=utf8 &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--delayed-insert采用延时插入方式（INSERT DELAYED）导出数据</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --delayed-insert &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--events, -E导出事件。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --events &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--flush-logs开始导出之前刷新日志。请注意：假如一次导出多个数据库(使用选项--databases或者--all-databases)，将会逐个数据库刷新日志。</span><br><span class="line">除使用--lock-all-tables或者--master-data外。在这种情况下，日志将会被刷新一次，相应的所以表同时被锁定。因此，如果打算同时导出和刷新</span><br><span class="line">日志应该使用--lock-all-tables 或者--master-data 和--flush-logs。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --flush-logs &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--flush-privileges在导出mysql数据库之后，发出一条FLUSH PRIVILEGES 语句。为了正确恢复，该选项应该用于导出mysql数据库和依赖mysql</span><br><span class="line">数据库数据的任何时候。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --flush-privileges &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--force在导出过程中忽略出现的SQL错误。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --all-databases --force &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--host, -h需要导出的主机信息</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --host=localhost --all-databases &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--ignore-table不导出指定表。指定忽略多个表时，需要重复多次，每次一个表。每个表必须同时指定数据库和表名。例如：--ignore-table=database.table1 --ignore-table=database.table2 ……</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --host=localhost --all-databases --ignore-table=mysql.user &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--lock-all-tables, -x提交请求锁定所有数据库中的所有表，以保证数据的一致性。这是一个全局读锁，并且自动关闭--single-transaction 和--lock-tables 选项。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --host=localhost --all-databases --lock-all-tables &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--lock-tables, -l开始导出前，锁定所有表。用READ LOCAL锁定表以允许MyISAM表并行插入。对于支持事务的表例如InnoDB和BDB，--single-transaction是一个</span><br><span class="line">更好的选择，因为它根本不需要锁定表。请注意当导出多个数据库时，--lock-tables分别为每个数据库锁定表。因此，该选项不能保证导出文件中的表在数据库之间</span><br><span class="line">的逻辑一致性。不同数据库表的导出状态可以完全不同。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --host=localhost --all-databases --lock-tables &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--no-create-db, -n只导出数据，而不添加CREATE DATABASE 语句。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --host=localhost --all-databases --no-create-db &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--no-create-info, -t只导出数据，而不添加CREATE TABLE 语句。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --host=localhost --all-databases --no-create-info &gt; /root/db.sql</span><br><span class="line">   </span><br><span class="line">--no-data, -d不导出任何数据，只导出数据库表结构。</span><br><span class="line">[root@Mysql-node1 ~]# mysqldump -uroot -p --host=localhost --all-databases --no-data &gt; /root/db.sql</span><br></pre></td></tr></table></figure>
+
+<pre><code>                              **备份Mysql数据库的通常使用命令**                             
+</code></pre>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">1）备份kevin库 (两种方法)</span><br><span class="line"><span class="comment"># mysqldump --single-transaction --master-data=2 --triggers --routines --database kevin -uroot -p123456 &gt; /root/kevin.sql</span></span><br><span class="line"><span class="comment"># mysqldump -uroot -p123456 -B -F -R -x --master-data=2 kevin|gzip &gt;/opt/backup/kevin_$(date +%F).sql.gz</span></span><br><span class="line"> </span><br><span class="line">参数说明：</span><br><span class="line">-B：指定数据库</span><br><span class="line">-F：刷新日志</span><br><span class="line">-R：备份存储过程等</span><br><span class="line">-x：锁表</span><br><span class="line">--master-data：在备份语句里添加CHANGE MASTER语句以及binlog文件及位置点信息</span><br><span class="line"> </span><br><span class="line">这里稍微注意下：</span><br><span class="line">mysql5.6使用mysqldump备份时，指定备份的具体库，使用--database</span><br><span class="line">mysql5.7使用mysqldump备份时，指定备份的具体库，使用--databases</span><br><span class="line"> </span><br><span class="line">2）备份整个数据库（基于打开GTID功能的Mysql）。下面这两种备份方法中，不能在下面命令中添加具体的库，比如kevin库</span><br><span class="line"><span class="comment"># mysqldump -u root -p&#x27;123456&#x27; --lock-all-tables --master-data=2 --flush-logs --all-databases --triggers --routines --events &gt; 205_slave.sql</span></span><br><span class="line"><span class="comment"># mysqldump -uroot -p&#x27;123456&#x27; -B -A -F --set-gtid-purged=OFF  --master-data=2 --single-transaction  --events |gzip &gt;/root/205_$(date +%F).sql.gz</span></span><br><span class="line"> </span><br><span class="line">以上备份的sql文件，恢复时，直接执行<span class="string">&quot;mysql -uroot -p123456 &lt; file.sql&quot;</span> 或者登录数据库执行<span class="string">&quot;source file.sql&quot;</span> 命令进行即可恢复备份的数据！不需要提前创建要恢复的库！</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<pre><code>                              **mysql数据库相关备份策略的脚本分享**                           
+</code></pre>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br></pre></td><td class="code"><pre><span class="line">本机mysql采用的是多库多实例方案，即一个库对应一个实例，有多少个库就开启多少个端口的mysql实例。</span><br><span class="line">正常情况下都采用这种方案，一库一实例集群，隔离性和可辨识性会很强，性能也更强。</span><br><span class="line"> </span><br><span class="line">如果是虚拟机，机器性能有限，可以一个实例开启多个库。比如一个实例对应3个库，开启三个实例，一台机器总共开9个库，</span><br><span class="line">然后针对这三个实例再做集群（比如一主两从，即再加两台机器，分别针对每台机器的三个实例做各自的一主两从）</span><br><span class="line"> </span><br><span class="line">mysql的备份脚本：</span><br><span class="line">[app@kevin-mysql01 scripts]$ <span class="built_in">pwd</span></span><br><span class="line">/home/scripts</span><br><span class="line">[app@kevin-mysql01 scripts]$ <span class="built_in">ls</span></span><br><span class="line">dump_full.sh  full_backup_mysql.sh  incremental_backup_mysql.sh  shibo_databackup.sh  rsync.sh</span><br><span class="line">  </span><br><span class="line">1）</span><br><span class="line">[app@kevin-mysql01 scripts]$ <span class="built_in">cat</span> dump_full.sh</span><br><span class="line"><span class="comment">#!/bin/bash</span></span><br><span class="line"><span class="comment">#注释：mysql DB的全库备份脚本</span></span><br><span class="line">DB_USER=<span class="string">&#x27;mybak&#x27;</span></span><br><span class="line">DATE=`<span class="built_in">date</span> -d<span class="string">&quot;today&quot;</span> +%Y%m%d`</span><br><span class="line">TIME=`<span class="built_in">date</span> <span class="string">&quot;+%Y-%m-%d %H:%M:%S&quot;</span>`</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;--------------开始分库分表备份:开始时间为 &#x27;</span><span class="variable">$TIME</span></span><br><span class="line"><span class="keyword">for</span> port <span class="keyword">in</span> `ps -ef | grep mysql| grep socket| grep datadir| awk -F= <span class="string">&#x27;&#123;print $NF&#125;&#x27;</span>`</span><br><span class="line">  <span class="keyword">do</span></span><br><span class="line">    BEGIN=`<span class="built_in">date</span> <span class="string">&quot;+%Y-%m-%d %H:%M:%S&quot;</span>`</span><br><span class="line">    BEGIN_T=`<span class="built_in">date</span> -d <span class="string">&quot;<span class="variable">$BEGIN</span>&quot;</span> +%s`</span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&#x27;备份&#x27;</span><span class="variable">$port</span><span class="string">&#x27;端口号的mysql实例，开始时间为 &#x27;</span><span class="variable">$BEGIN</span></span><br><span class="line">    BACKUP_DIR=/data/backup/<span class="variable">$DATE</span>/<span class="variable">$port</span>;</span><br><span class="line">    <span class="built_in">mkdir</span> -p  <span class="variable">$BACKUP_DIR</span>;</span><br><span class="line">    <span class="comment">##避免循环的port和sock不匹配</span></span><br><span class="line">    sock=`ps -ef | grep mysql| grep socket| grep datadir|awk -F<span class="string">&quot;.pid&quot;</span> <span class="string">&#x27;&#123;print $NF&#125;&#x27;</span>| grep <span class="variable">$port</span>`</span><br><span class="line">    DB_PASSWORD=<span class="string">&#x27;MySQL123.&#x27;</span>  </span><br><span class="line">    <span class="comment">#过滤掉MySQL自带的DB</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> `/usr/local/mysql/bin/mysql -u<span class="variable">$DB_USER</span> -p<span class="variable">$DB_PASSWORD</span>  <span class="variable">$sock</span> -BN -e<span class="string">&quot;show databases;&quot;</span> |sed <span class="string">&#x27;/^performance_schema$/&#x27;</span>d|sed <span class="string">&#x27;/^mysql/&#x27;</span>d |sed <span class="string">&#x27;/^information_schema$/&#x27;</span>d|sed <span class="string">&#x27;/^information_schema$/&#x27;</span>d|sed <span class="string">&#x27;/^test$/&#x27;</span>d  `</span><br><span class="line">    <span class="keyword">do</span></span><br><span class="line">      <span class="built_in">sudo</span>  /usr/local/mysql/bin/mysqldump -u<span class="variable">$DB_USER</span> -p<span class="variable">$DB_PASSWORD</span> <span class="variable">$sock</span> --master-data=2 -q  -c  --skip-add-locks  -R -E -B <span class="variable">$i</span> &gt; <span class="variable">$BACKUP_DIR</span>/$<span class="built_in">date</span><span class="variable">$i</span>.sql</span><br><span class="line">    <span class="keyword">done</span></span><br><span class="line">    END=`<span class="built_in">date</span> <span class="string">&quot;+%Y-%m-%d %H:%M:%S&quot;</span>`</span><br><span class="line">    END_T=`<span class="built_in">date</span> -d <span class="string">&quot;<span class="variable">$END</span>&quot;</span> +%s`</span><br><span class="line">    TIME_INVENTAL_M=$[(<span class="variable">$END_T</span>-<span class="variable">$BEGIN_T</span>)/60]</span><br><span class="line">    TIME_INVENTAL_S=$[(<span class="variable">$END_T</span>-<span class="variable">$BEGIN_T</span>)%60]</span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&#x27;备份&#x27;</span><span class="variable">$port</span><span class="string">&#x27;端口号的mysql实例于&#x27;</span> <span class="variable">$END</span> <span class="string">&#x27;备份完成，使用时间为 &#x27;</span><span class="variable">$TIME_INVENTAL_M</span><span class="string">&#x27;分钟&#x27;</span><span class="variable">$TIME_INVENTAL_S</span><span class="string">&#x27;秒&#x27;</span></span><br><span class="line">         <span class="comment">#备份文件的处理</span></span><br><span class="line">         <span class="built_in">cd</span> <span class="variable">$BACKUP_DIR</span>/..</span><br><span class="line">         tar -zczf <span class="variable">$port</span><span class="string">&#x27;_&#x27;</span>$(<span class="built_in">date</span> +%F_%H-%M).tar.gz <span class="variable">$port</span></span><br><span class="line">         <span class="comment">#解压 tar -zvxf  $port.tar.gz</span></span><br><span class="line">         <span class="built_in">rm</span> -rf <span class="variable">$port</span></span><br><span class="line"><span class="keyword">done</span></span><br><span class="line">TIME_END=`<span class="built_in">date</span> <span class="string">&quot;+%Y-%m-%d %H:%M:%S&quot;</span>`</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;--------------backup all database successfully！！！结束时间:&#x27;</span> <span class="variable">$TIME_END</span></span><br><span class="line"><span class="comment">#删除60天以前的备份</span></span><br><span class="line">find /data/backup/ -name <span class="string">&#x27;*&#x27;</span>`<span class="built_in">date</span> +%Y`<span class="string">&#x27;*&#x27;</span> -<span class="built_in">type</span> d -mtime  +60 -<span class="built_in">exec</span> <span class="built_in">rm</span> -rf  &#123;&#125; \;</span><br><span class="line">  </span><br><span class="line">2）</span><br><span class="line">[app@kevin-mysql01 scripts]$ <span class="built_in">cat</span> full_backup_mysql.sh</span><br><span class="line"><span class="comment">#!/bin/sh</span></span><br><span class="line"><span class="comment">#########################################################################</span></span><br><span class="line"><span class="comment">## Description: Mysql全量备份脚本</span></span><br><span class="line"><span class="comment">## File Name: full-backup-mysql.sh</span></span><br><span class="line"><span class="comment">## Author: wangshibo</span></span><br><span class="line"><span class="comment">## mail: wangshibo@************</span></span><br><span class="line"><span class="comment">## Created Time: 2017年9月11日 14:17:09</span></span><br><span class="line"><span class="comment">##########################################################################</span></span><br><span class="line">OneMonthAgo=`<span class="built_in">date</span> -d <span class="string">&quot;2 month ago&quot;</span>  +%Y%m%d`</span><br><span class="line">today=`<span class="built_in">date</span> +%Y%m%d`</span><br><span class="line">datetime=`<span class="built_in">date</span> +%Y%m%d-%H-%M-%S`</span><br><span class="line">config=/etc/mykedata_3326.cnf</span><br><span class="line">basePath=/data/backup</span><br><span class="line">logfilePath=<span class="variable">$basePath</span>/logs</span><br><span class="line">logfile=<span class="variable">$logfilePath</span>/full_<span class="variable">$datetime</span>.<span class="built_in">log</span></span><br><span class="line">USER=mybak</span><br><span class="line">PASSWD=1az2wsx3edc@sb</span><br><span class="line">SOCKET=/data/mysqldata/kedata/mysql.sock</span><br><span class="line">dataBases=<span class="string">&quot;huoqiu batchdb shenzheng tianjin asset bc_asset shanghai vered_dataplatform aomen&quot;</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;Full backup mysql in &#x27;</span> <span class="variable">$path</span> &gt; <span class="variable">$logfile</span></span><br><span class="line">path=<span class="variable">$basePath</span>/full_<span class="variable">$datetime</span></span><br><span class="line"><span class="built_in">mkdir</span> -p <span class="variable">$path</span></span><br><span class="line"><span class="built_in">sudo</span> /usr/bin/innobackupex  --defaults-file=<span class="variable">$config</span>  --user=<span class="variable">$USER</span> --password=<span class="variable">$PASSWD</span> --socket=<span class="variable">$SOCKET</span> --compress --compress-threads=2 --compress-chunk-size=64K --host=localhost  <span class="variable">$path</span> --no-timestamp  &gt; <span class="variable">$logfile</span> 2&gt;&amp;1</span><br><span class="line"><span class="comment">#--safe-slave-backup</span></span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">chown</span> app.app <span class="variable">$path</span> -R</span><br><span class="line">ret=`<span class="built_in">tail</span> -n 2 <span class="variable">$logfile</span> |grep <span class="string">&quot;completed OK&quot;</span>|<span class="built_in">wc</span> -l`</span><br><span class="line"><span class="keyword">if</span> [ <span class="string">&quot;<span class="variable">$ret</span>&quot;</span> =  1 ] ; <span class="keyword">then</span></span><br><span class="line">        <span class="built_in">echo</span> <span class="string">&#x27;delete expired backup &#x27;</span> <span class="variable">$basePath</span>/<span class="variable">$OneMonthAgo</span>  &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line">        <span class="built_in">echo</span> <span class="variable">$path</span> &gt; <span class="variable">$logfilePath</span>/last_backup_sucess.log</span><br><span class="line">        <span class="built_in">rm</span> -rf <span class="variable">$basePath</span>/full_<span class="variable">$OneMonthAgo</span>*</span><br><span class="line">        <span class="built_in">rm</span> -f   <span class="variable">$logfilePath</span>/full_<span class="variable">$OneMonthAgo</span>*.<span class="built_in">log</span></span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&#x27;backup failure ,no delete expired backup&#x27;</span>  &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line"><span class="keyword">fi</span></span><br><span class="line">  </span><br><span class="line"><span class="keyword">if</span> [ <span class="string">&quot;<span class="variable">$ret</span>&quot;</span> = 1 ] ;<span class="keyword">then</span></span><br><span class="line">    status=0</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">    status=1</span><br><span class="line"><span class="keyword">fi</span></span><br><span class="line"><span class="built_in">echo</span> <span class="variable">$status</span></span><br><span class="line">ts=`<span class="built_in">date</span> +%s`;</span><br><span class="line">curl -X POST -d <span class="string">&quot;[&#123;\&quot;metric\&quot;: \&quot;backup_status\&quot;, \&quot;endpoint\&quot;: \&quot;bl2-mysql01.veredholdings.cn\&quot;, \&quot;timestamp\&quot;: <span class="variable">$ts</span>,\&quot;step\&quot;:86400,\&quot;value\&quot;: <span class="variable">$status</span>,\&quot;counterType\&quot;: \&quot;GAUGE\&quot;,\&quot;tags\&quot;: \&quot;\&quot;&#125;]&quot;</span> http://127.0.0.1:1988/v1/push</span><br><span class="line">  </span><br><span class="line">3）</span><br><span class="line">[app@kevin-mysql01 scripts]$ <span class="built_in">cat</span> incremental_backup_mysql.sh</span><br><span class="line"><span class="comment">#!/bin/sh</span></span><br><span class="line"><span class="comment">#########################################################################</span></span><br><span class="line"><span class="comment">## Description: Mysql增量备份脚本</span></span><br><span class="line"><span class="comment">## File Name: incremental-backup-mysql.sh</span></span><br><span class="line"><span class="comment">## Author: wangshibo</span></span><br><span class="line"><span class="comment">## mail: wangshibo@************</span></span><br><span class="line"><span class="comment">## Created Time: 2018年1月11日 14:17:09</span></span><br><span class="line"><span class="comment">##########################################################################</span></span><br><span class="line">today=`<span class="built_in">date</span> +%Y%m%d`</span><br><span class="line">datetime=`<span class="built_in">date</span> +%Y%m%d-%H-%M-%S`</span><br><span class="line">config=/etc/mykedata_3326.cnf</span><br><span class="line">basePath=/data/backup</span><br><span class="line">logfilePath=<span class="variable">$basePath</span>/logs</span><br><span class="line">logfile=<span class="variable">$logfilePath</span>/incr_<span class="variable">$datetime</span>.<span class="built_in">log</span></span><br><span class="line">USER=mybak</span><br><span class="line">PASSWD=1az2wsx3edc@sb</span><br><span class="line">dataBases=<span class="string">&quot;huoqiu batchdb shenzheng tianjin shanghai asset aomen&quot;</span></span><br><span class="line">  </span><br><span class="line">pid=`ps -ef | grep -v <span class="string">&quot;grep&quot;</span> |grep -i innobackupex|awk <span class="string">&#x27;&#123;print $2&#125;&#x27;</span>|<span class="built_in">head</span> -n 1`</span><br><span class="line"><span class="keyword">if</span> [ -z <span class="variable">$pid</span> ]</span><br><span class="line"><span class="keyword">then</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot; start incremental backup database &quot;</span> &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line">  OneMonthAgo=`<span class="built_in">date</span> -d <span class="string">&quot;1 month ago&quot;</span>  +%Y%m%d`</span><br><span class="line">  path=<span class="variable">$basePath</span>/incr_<span class="variable">$datetime</span></span><br><span class="line">  <span class="built_in">mkdir</span> -p <span class="variable">$path</span></span><br><span class="line">  last_backup=`<span class="built_in">cat</span> <span class="variable">$logfilePath</span>/last_backup_sucess.log| <span class="built_in">head</span> -1`</span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot; last backup is ===&gt; &quot;</span> <span class="variable">$last_backup</span> &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line"><span class="built_in">sudo</span> /usr/bin/innobackupex  --defaults-file=<span class="variable">$config</span>  --user=<span class="variable">$USER</span> --password=<span class="variable">$PASSWD</span> --compress --compress-threads=2 --compress-chunk-size=64K --slave-info  --host=localhost --incremental <span class="variable">$path</span> --incremental-basedir=<span class="variable">$last_backup</span> --databases=<span class="string">&quot;<span class="variable">$&#123;dataBases&#125;</span>&quot;</span> --no-timestamp &gt;&gt; <span class="variable">$logfile</span> 2&gt;&amp;1</span><br><span class="line"><span class="comment">#--safe-slave-backup</span></span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">chown</span> app.app <span class="variable">$path</span> -R</span><br><span class="line">  ret=`<span class="built_in">tail</span> -n 2 <span class="variable">$logfile</span> |grep <span class="string">&quot;completed OK&quot;</span>|<span class="built_in">wc</span> -l`</span><br><span class="line">  <span class="keyword">if</span> [ <span class="string">&quot;<span class="variable">$ret</span>&quot;</span> =  1 ] ; <span class="keyword">then</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&#x27;delete expired backup &#x27;</span> <span class="variable">$basePath</span>/incr_<span class="variable">$OneMonthAgo</span>*  &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line">    <span class="built_in">rm</span> -rf <span class="variable">$basePath</span>/incr_<span class="variable">$OneMonthAgo</span>*</span><br><span class="line">    <span class="built_in">rm</span> -f <span class="variable">$logfilePath</span>/incr_<span class="variable">$OneMonthAgo</span>*.<span class="built_in">log</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="variable">$path</span> &gt; <span class="variable">$logfilePath</span>/last_backup_sucess.log</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&#x27;backup failure ,no delete expired backup&#x27;</span>  &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line">  <span class="keyword">fi</span></span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">   <span class="built_in">echo</span> <span class="string">&quot;****** innobackupex in backup database  ****** &quot;</span>  &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line"><span class="keyword">fi</span></span><br><span class="line">  </span><br><span class="line">4）</span><br><span class="line">[app@kevin-mysql01 scripts]$ <span class="built_in">cat</span> shibo_databackup.sh</span><br><span class="line"><span class="comment">#!/bin/bash</span></span><br><span class="line">USERNAME=root</span><br><span class="line">PASSWORD=kevin@qwe123!@#s</span><br><span class="line">DATE=`<span class="built_in">date</span> +%Y-%m-%d`</span><br><span class="line">OLDDATE=`<span class="built_in">date</span> +%Y-%m-%d -d <span class="string">&#x27;-30 days&#x27;</span>`</span><br><span class="line">  </span><br><span class="line">MYSQL=/usr/local/mysql/bin/mysql</span><br><span class="line">MYSQLDUMP=/usr/local/mysql/bin/mysqldump</span><br><span class="line">MYSQLADMIN=/usr/local/mysql/bin/mysqladmin</span><br><span class="line">SOCKET=/data/mysqldata/kedata/mysql.sock</span><br><span class="line">BACKDIR=/data/backup/</span><br><span class="line">  </span><br><span class="line">[ -d <span class="variable">$&#123;BACKDIR&#125;</span> ] || <span class="built_in">mkdir</span> -p <span class="variable">$&#123;BACKDIR&#125;</span></span><br><span class="line">[ -d <span class="variable">$&#123;BACKDIR&#125;</span>/<span class="variable">$&#123;DATE&#125;</span> ] || <span class="built_in">mkdir</span> <span class="variable">$&#123;BACKDIR&#125;</span>/<span class="variable">$&#123;DATE&#125;</span></span><br><span class="line">[ ! -d <span class="variable">$&#123;BACKDIR&#125;</span>/<span class="variable">$&#123;OLDDATE&#125;</span> ] || <span class="built_in">rm</span> -rf <span class="variable">$&#123;BACKDIR&#125;</span>/<span class="variable">$&#123;OLDDATE&#125;</span></span><br><span class="line">  </span><br><span class="line"><span class="keyword">for</span> DBNAME <span class="keyword">in</span> anhui huoqiu beijing  shenzheng shanghai tianjin  wangshibo aomen</span><br><span class="line"><span class="keyword">do</span></span><br><span class="line">   <span class="variable">$&#123;MYSQLDUMP&#125;</span> --opt -u<span class="variable">$&#123;USERNAME&#125;</span> -p<span class="variable">$&#123;PASSWORD&#125;</span> -S<span class="variable">$&#123;SOCKET&#125;</span> <span class="variable">$&#123;DBNAME&#125;</span> | gzip &gt; <span class="variable">$&#123;BACKDIR&#125;</span>/<span class="variable">$&#123;DATE&#125;</span>/<span class="variable">$&#123;DBNAME&#125;</span>-backup-<span class="variable">$&#123;DATE&#125;</span>.sql.gz</span><br><span class="line">   logger <span class="string">&quot;<span class="variable">$&#123;DBNAME&#125;</span> has been backup successful - <span class="variable">$DATE</span>&quot;</span></span><br><span class="line">   /bin/sleep 5</span><br><span class="line"><span class="keyword">done</span></span><br><span class="line">  </span><br><span class="line">5）</span><br><span class="line">[app@kevin-mysql01 scripts]$ <span class="built_in">cat</span> rsync.sh</span><br><span class="line"><span class="comment">#!/bin/bash</span></span><br><span class="line">datetime=`<span class="built_in">date</span> +%Y%m%d-%H-%M-%S`</span><br><span class="line">logfile=/data/backup/rsync.log</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;<span class="variable">$datetime</span> Rsync backup mysql start &quot;</span>  &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line"><span class="built_in">sudo</span> rsync -e <span class="string">&quot;ssh -p6666&quot;</span> -avpgolr /data/backup kevin@192.168.10.30:/data/backup_data/kevin/DB_bak/192.168.10.163/ &gt;&gt; <span class="variable">$logfile</span> 2&gt;&amp;1</span><br><span class="line">  </span><br><span class="line">ret=`<span class="built_in">tail</span> -n 1 <span class="variable">$logfile</span> |grep <span class="string">&quot;total size&quot;</span>|<span class="built_in">wc</span> -l`</span><br><span class="line"><span class="keyword">if</span> [ <span class="string">&quot;<span class="variable">$ret</span>&quot;</span> =  1 ] ; <span class="keyword">then</span></span><br><span class="line">        <span class="built_in">echo</span> <span class="string">&quot;<span class="variable">$datetime</span> Rsync backup mysql finish &quot;</span> &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">        <span class="built_in">echo</span> <span class="string">&quot;<span class="variable">$datetime</span> Rsync backup failure ,pls sendmail&quot;</span>  &gt;&gt; <span class="variable">$logfile</span></span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+
+
+
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/kevingrace/p/9403353.html">转自</a> <a target="_blank" rel="noopener" href="https://www.cnblogs.com/kevingrace/p/9403353.html">https://www.cnblogs.com/kevingrace/p/9403353.html</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/mysql/" rel="tag"># mysql</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/06/18/Spring%E4%B8%AD%E8%B0%83%E7%94%A8%E5%90%8C%E4%B8%80%E7%B1%BB%E4%B8%AD%E5%B8%A6%E6%B3%A8%E8%A7%A3%E6%96%B9%E6%B3%95%E4%B8%8D%E7%94%9F%E6%95%88%E9%97%AE%E9%A2%98/" rel="prev" title="Spring中调用同一类中带注解方法不生效问题">
+      <i class="fa fa-chevron-left"></i> Spring中调用同一类中带注解方法不生效问题
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/06/24/mysqldump%E9%AB%98%E7%89%88%E6%9C%AC%E5%AF%BC%E5%87%BAmysql5-x%E6%95%B0%E6%8D%AE%E5%BA%93%E6%97%B6%E6%8A%A5%E9%94%99/" rel="next" title="mysqldump高版本导出mysql5.x数据库时报错">
+      mysqldump高版本导出mysql5.x数据库时报错 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Mysqldump-%E5%A4%87%E4%BB%BD%E8%AF%B4%E6%98%8E%E5%8F%8A%E6%95%B0%E6%8D%AE%E5%BA%93%E5%A4%87%E4%BB%BD%E8%84%9A%E6%9C%AC"><span class="nav-number">1.</span> <span class="nav-text">Mysqldump 备份说明及数据库备份脚本</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="YinXukai"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">YinXukai</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">YinXukai</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
